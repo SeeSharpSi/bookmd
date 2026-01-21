@@ -1,0 +1,8 @@
+body {
+    font-family: 'Fraunces', serif;
+    background-color: #E3DACC;
+    color: #885afb;
+    display: flex; 
+    flex-direction: column;
+    align-items: center;
+}

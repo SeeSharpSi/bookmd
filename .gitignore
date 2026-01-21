@@ -3,3 +3,4 @@ bin/*
 images/*
 notes.db
 tmp/*
+*_templ.go
