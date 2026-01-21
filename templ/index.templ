@@ -58,6 +58,24 @@ templ Index() {
 				</div>
 			</section>
 
+			<!-- Regenerate Note Test Section -->
+			<section style="margin: 20px 0; padding: 20px; border: 1px solid #ccc; border-radius: 5px;">
+				<h2>Regenerate Note Test</h2>
+				<p>Regenerates markdown from the existing image for a note.</p>
+				<form id="regenerateNoteForm" onsubmit="handleRegenerateNote(event)">
+					<div>
+						<label for="regenerateNoteId">Note ID:</label><br>
+						<input type="number" id="regenerateNoteId" name="id" placeholder="Enter note ID to regenerate" required>
+					</div>
+					<br>
+					<button type="submit">Regenerate Markdown</button>
+				</form>
+				<div id="regenerateResult" style="margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 3px; display: none;">
+					<strong>Result:</strong><br>
+					<span id="regenerateResultText"></span>
+				</div>
+			</section>
+
 			<script>
 				async function handleAddNote(event) {
 					event.preventDefault();
@@ -124,6 +142,42 @@ templ Index() {
 					} catch (error) {
 						const resultDiv = document.getElementById('updateResult');
 						const resultText = document.getElementById('updateResultText');
+						resultDiv.style.background = '#f8d7da';
+						resultDiv.style.border = '1px solid #f5c6cb';
+						resultText.textContent = 'Error: ' + error.message;
+						resultDiv.style.display = 'block';
+					}
+				}
+
+				async function handleRegenerateNote(event) {
+					event.preventDefault();
+					const form = document.getElementById('regenerateNoteForm');
+					const formData = new FormData(form);
+					
+					try {
+						const response = await fetch('/api/regenerate-note', {
+							method: 'POST',
+							body: formData
+						});
+						
+						const result = await response.json();
+						const resultDiv = document.getElementById('regenerateResult');
+						const resultText = document.getElementById('regenerateResultText');
+						
+						if (result.success) {
+							resultDiv.style.background = '#d4edda';
+							resultDiv.style.border = '1px solid #c3e6cb';
+							resultText.textContent = `Success! Regenerated Note ID: ${result.id}, Image: ${result.image}`;
+						} else {
+							resultDiv.style.background = '#f8d7da';
+							resultDiv.style.border = '1px solid #f5c6cb';
+							resultText.textContent = 'Error: ' + (result.error || 'Unknown error');
+						}
+						
+						resultDiv.style.display = 'block';
+					} catch (error) {
+						const resultDiv = document.getElementById('regenerateResult');
+						const resultText = document.getElementById('regenerateResultText');
 						resultDiv.style.background = '#f8d7da';
 						resultDiv.style.border = '1px solid #f5c6cb';
 						resultText.textContent = 'Error: ' + error.message;

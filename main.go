@@ -94,6 +94,7 @@ func add_routes(mux *http.ServeMux) {
 	mux.HandleFunc("/static/{file}", ServeStatic)
 	mux.HandleFunc("/api/add-note", AddNoteHandler)
 	mux.HandleFunc("/api/update-note", UpdateNoteHandler)
+	mux.HandleFunc("/api/regenerate-note", RegenerateNoteHandler)
 }
 
 func ServeStatic(w http.ResponseWriter, r *http.Request) {
@@ -238,4 +239,67 @@ func UpdateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	fmt.Fprintf(w, `{"success": true, "id": %d, "image": "%s", "markdown": "%s"}`,
 		note.ID, note.Image, strings.ReplaceAll(note.Markdown, "\n", "\\n"))
+}
+
+func RegenerateNoteHandler(w http.ResponseWriter, r *http.Request) {
+	log.Printf("got %s request\n", r.URL.Path)
+
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Get note ID from form
+	idStr := r.FormValue("id")
+	if idStr == "" {
+		http.Error(w, "Note ID required", http.StatusBadRequest)
+		return
+	}
+
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid note ID", http.StatusBadRequest)
+		return
+	}
+
+	// Parse form
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Failed to parse form", http.StatusBadRequest)
+		return
+	}
+
+	// Get the existing note from database
+	note, err := funcs.GetNoteByID(db, id)
+	if err != nil {
+		http.Error(w, "Failed to retrieve note: "+err.Error(), http.StatusNotFound)
+		return
+	}
+
+	// Construct full image path
+	imagePath := filepath.Join("./images", note.Image)
+
+	// Check if image file exists
+	if _, err := os.Stat(imagePath); os.IsNotExist(err) {
+		http.Error(w, "Image file not found", http.StatusNotFound)
+		return
+	}
+
+	// Convert image to markdown using AI (regenerating)
+	markdown, err := funcs.ConvertImageToMarkdown(context.Background(), aiClient, imagePath)
+	if err != nil {
+		http.Error(w, "Failed to convert image to markdown: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Update database with new markdown (keeping same image)
+	updatedNote, err := funcs.UpdateNote(db, id, note.Image, markdown)
+	if err != nil {
+		http.Error(w, "Failed to update database: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Return success response
+	w.Header().Set("Content-Type", "application/json")
+	fmt.Fprintf(w, `{"success": true, "id": %d, "image": "%s", "markdown": "%s"}`,
+		updatedNote.ID, updatedNote.Image, strings.ReplaceAll(updatedNote.Markdown, "\n", "\\n"))
 }
